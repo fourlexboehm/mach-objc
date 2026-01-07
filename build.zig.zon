@@ -1,5 +1,6 @@
 .{
-    .name = "mach-objc",
+    .fingerprint = 0xd0611af9392648d4,
+    .name = .mach_objc,
     .version = "0.0.0",
     .paths = .{
         "src",

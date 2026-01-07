@@ -2,7 +2,7 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 pub extern "System" fn dispatch_async(queue: *anyopaque, work: *const Block(fn (*BlockLiteral(void)) void)) void;
-pub extern "System" fn dispatch_async_f(queue: *anyopaque, context: ?*anyopaque, work: *const fn (context: ?*anyopaque) callconv(.C) void) void;
+pub extern "System" fn dispatch_async_f(queue: *anyopaque, context: ?*anyopaque, work: *const fn (context: ?*anyopaque) callconv(.c) void) void;
 pub extern "System" fn @"dispatch_assert_queue$V2"(queue: *anyopaque) void;
 pub extern "System" var _dispatch_main_q: anyopaque;
 
@@ -13,20 +13,28 @@ pub fn Block(comptime Signature: type) type {
     const signature_fn_info = @typeInfo(Signature).@"fn";
     return opaque {
         pub fn invoke(self: *@This(), args: std.meta.ArgsTuple(Signature)) signature_fn_info.return_type.? {
-            const self_param = std.builtin.Type.Fn.Param{
-                .is_generic = false,
-                .is_noalias = false,
-                .type = *@This(),
-            };
-            const SignatureForInvoke = @Type(.{
-                .@"fn" = .{
-                    .calling_convention = std.builtin.CallingConvention.c,
-                    .is_generic = signature_fn_info.is_generic,
-                    .is_var_args = signature_fn_info.is_var_args,
-                    .return_type = signature_fn_info.return_type,
-                    .params = .{self_param} ++ signature_fn_info.params,
-                },
-            });
+            if (signature_fn_info.is_generic) {
+                @compileError("Block signatures must be non-generic");
+            }
+
+            const ParamAttrs = std.builtin.Type.Fn.Param.Attributes;
+            const param_len = signature_fn_info.params.len + 1;
+            var param_types: [param_len]type = undefined;
+            var param_attrs: [param_len]ParamAttrs = undefined;
+
+            param_types[0] = *@This();
+            param_attrs[0] = .{};
+            inline for (signature_fn_info.params, 0..) |param, i| {
+                param_types[i + 1] = param.type orelse @compileError("Block signatures must be concrete");
+                param_attrs[i + 1] = .{ .@"noalias" = param.is_noalias };
+            }
+
+            const SignatureForInvoke = @Fn(
+                &param_types,
+                &param_attrs,
+                signature_fn_info.return_type orelse @compileError("Block signatures must return a concrete type"),
+                .{ .@"callconv" = .c, .varargs = signature_fn_info.is_var_args },
+            );
 
             const offset = @offsetOf(BlockLiteral(void), "invoke");
             const invoke_ptr: *const SignatureForInvoke = @ptrCast(self + offset);
@@ -100,8 +108,8 @@ fn CopyDisposeBlockDescriptor(comptime Context: type) type {
         copy: *const CopyFn,
         dispose: *const DisposeFn,
 
-        pub const CopyFn = fn (dst: *BlockLiteral(Context), src: *const BlockLiteral(Context)) callconv(.C) void;
-        pub const DisposeFn = fn (block: *const BlockLiteral(Context)) callconv(.C) void;
+        pub const CopyFn = fn (dst: *BlockLiteral(Context), src: *const BlockLiteral(Context)) callconv(.c) void;
+        pub const DisposeFn = fn (block: *const BlockLiteral(Context)) callconv(.c) void;
 
         fn static(comptime size: c_ulong, comptime copy: CopyFn, comptime dispose: DisposeFn) *const CopyDisposeBlockDescriptor {
             const Static = struct {
@@ -120,7 +128,21 @@ fn SignatureWithoutBlockLiteral(comptime Signature: type) type {
     var type_info = @typeInfo(Signature);
     type_info.@"fn".calling_convention = .auto;
     type_info.@"fn".params = type_info.@"fn".params[1..];
-    return @Type(type_info);
+    const ParamAttrs = std.builtin.Type.Fn.Param.Attributes;
+    const params = type_info.@"fn".params;
+    const param_len = params.len;
+    var param_types: [param_len]type = undefined;
+    var param_attrs: [param_len]ParamAttrs = undefined;
+    inline for (params, 0..) |param, i| {
+        param_types[i] = param.type orelse @compileError("Block signatures must be concrete");
+        param_attrs[i] = .{ .@"noalias" = param.is_noalias };
+    }
+    return @Fn(
+        &param_types,
+        &param_attrs,
+        type_info.@"fn".return_type orelse @compileError("Block signatures must return a concrete type"),
+        .{ .@"callconv" = .auto, .varargs = type_info.@"fn".is_var_args },
+    );
 }
 
 fn validateBlockSignature(comptime Invoke: type, comptime ExpectedLiteralType: type) void {
@@ -143,8 +165,8 @@ fn validateBlockSignature(comptime Invoke: type, comptime ExpectedLiteralType: t
 pub fn stackBlockLiteral(
     invoke: anytype,
     context: anytype,
-    comptime copy: ?fn (dst: *BlockLiteral(@TypeOf(context)), src: *const BlockLiteral(@TypeOf(context))) callconv(.C) void,
-    comptime dispose: ?fn (block: *const BlockLiteral(@TypeOf(context))) callconv(.C) void,
+    comptime copy: ?fn (dst: *BlockLiteral(@TypeOf(context)), src: *const BlockLiteral(@TypeOf(context))) callconv(.c) void,
+    comptime dispose: ?fn (block: *const BlockLiteral(@TypeOf(context))) callconv(.c) void,
 ) BlockLiteralWithSignature(@TypeOf(context), SignatureWithoutBlockLiteral(@TypeOf(invoke))) {
     const Context = @TypeOf(context);
     const Literal = BlockLiteral(Context);

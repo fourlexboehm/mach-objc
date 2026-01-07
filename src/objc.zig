@@ -68,41 +68,29 @@ pub fn msgSend(receiver: anytype, comptime selector: []const u8, return_type: ty
     // validate it against `receiver` and `args`.
 
     const fn_type = comptime init: {
-        var params: []const std.builtin.Type.Fn.Param = &.{
-            .{
-                .is_generic = false,
-                .is_noalias = false,
-                .type = @TypeOf(receiver),
-            },
-            .{
-                .is_generic = false,
-                .is_noalias = false,
-                .type = [*:0]c_char,
-            },
-        };
-        for (@typeInfo(@TypeOf(args)).@"struct".fields) |field| {
-            params = params ++
-                [_]std.builtin.Type.Fn.Param{.{
-                .is_generic = false,
-                .is_noalias = false,
-                .type = field.type,
-            }};
+        const ParamAttrs = std.builtin.Type.Fn.Param.Attributes;
+        const args_fields = @typeInfo(@TypeOf(args)).@"struct".fields;
+        const param_len = args_fields.len + 2;
+        var param_types: [param_len]type = undefined;
+        var param_attrs: [param_len]ParamAttrs = undefined;
+
+        param_types[0] = @TypeOf(receiver);
+        param_attrs[0] = .{};
+        param_types[1] = [*:0]c_char;
+        param_attrs[1] = .{};
+
+        for (args_fields, 0..) |field, i| {
+            param_types[i + 2] = field.type;
+            param_attrs[i + 2] = .{};
         }
-        break :init std.builtin.Type{
-            .@"fn" = .{
-                .calling_convention = std.builtin.CallingConvention.c,
-                .is_generic = false,
-                .is_var_args = false,
-                .return_type = return_type,
-                .params = params,
-            },
-        };
+
+        break :init @Fn(&param_types, &param_attrs, return_type, .{ .@"callconv" = .c });
     };
 
     const needs_fpret = comptime builtin.target.cpu.arch == .x86 and (return_type == f32 or return_type == f64);
     const needs_stret = comptime builtin.target.cpu.arch == .x86 and @sizeOf(return_type) > 16;
     const msg_send_fn_name = comptime if (needs_stret) "objc_msgSend_stret" else if (needs_fpret) "objc_msgSend_fpret" else "objc_msgSend";
-    const msg_send_fn = @extern(*const @Type(fn_type), .{ .name = msg_send_fn_name ++ "$" ++ selector });
+    const msg_send_fn = @extern(*const fn_type, .{ .name = msg_send_fn_name ++ "$" ++ selector });
     return @call(.auto, msg_send_fn, .{ receiver, undefined } ++ args);
 }
 
