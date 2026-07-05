@@ -2269,14 +2269,15 @@ const Framework = enum {
     app_kit,
 };
 
-pub fn main() anyerror!void {
-    var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{ .stack_trace_frames = 8 }){};
+pub fn main(init: std.process.Init) anyerror!void {
+    var general_purpose_allocator = std.heap.DebugAllocator(.{ .stack_trace_frames = 8 }){};
     defer std.debug.assert(general_purpose_allocator.deinit() == .ok);
 
     const allocator = general_purpose_allocator.allocator();
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    const args = try init.minimal.args.toSlice(arena.allocator());
 
     var framework: Framework = .metal;
     var i: usize = 1;

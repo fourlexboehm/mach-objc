@@ -1,6 +1,8 @@
 .{
-    .name = "mach-objc",
+    .fingerprint = 0xd0611af945d56781,
+    .name = .mach_objc,
     .version = "0.0.0",
+    .minimum_zig_version = "0.17.0-dev.1245+efd6f190f",
     .paths = .{
         "src",
         "build.zig",
@@ -31,7 +33,7 @@
     .dependencies = .{
         .xcode_frameworks = .{
             .url = "https://pkg.machengine.org/xcode-frameworks/9a45f3ac977fd25dff77e58c6de1870b6808c4a7.tar.gz",
-            .hash = "122098b9174895f9708bc824b0f9e550c401892c40a900006459acf2cbf78acd99bb",
+            .hash = "N-V-__8AABHMqAX8gGMZSJaY49ZnffRiY83cbqni9ljgA8Fw",
             .lazy = true,
         },
     },

@@ -2,7 +2,7 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 pub extern "System" fn dispatch_async(queue: *anyopaque, work: *const Block(fn (*BlockLiteral(void)) void)) void;
-pub extern "System" fn dispatch_async_f(queue: *anyopaque, context: ?*anyopaque, work: *const fn (context: ?*anyopaque) callconv(.C) void) void;
+pub extern "System" fn dispatch_async_f(queue: *anyopaque, context: ?*anyopaque, work: *const fn (context: ?*anyopaque) callconv(.c) void) void;
 pub extern "System" fn @"dispatch_assert_queue$V2"(queue: *anyopaque) void;
 pub extern "System" var _dispatch_main_q: anyopaque;
 
@@ -13,24 +13,25 @@ pub fn Block(comptime Signature: type) type {
     const signature_fn_info = @typeInfo(Signature).@"fn";
     return opaque {
         pub fn invoke(self: *@This(), args: std.meta.ArgsTuple(Signature)) signature_fn_info.return_type.? {
-            const self_param = std.builtin.Type.Fn.Param{
-                .is_generic = false,
-                .is_noalias = false,
-                .type = *@This(),
+            const SignatureForInvoke = comptime init: {
+                var param_types: []const type = &.{*@This()};
+                var param_attrs: []const std.builtin.Type.Fn.ParamAttributes = &.{std.builtin.Type.Fn.ParamAttributes{}};
+                for (signature_fn_info.param_types) |param_type| {
+                    param_types = param_types ++ .{param_type.?};
+                    param_attrs = param_attrs ++ .{std.builtin.Type.Fn.ParamAttributes{}};
+                }
+                break :init @Fn(
+                    param_types,
+                    @ptrCast(param_attrs.ptr),
+                    signature_fn_info.return_type.?,
+                    .{ .@"callconv" = .c },
+                );
             };
-            const SignatureForInvoke = @Type(.{
-                .@"fn" = .{
-                    .calling_convention = std.builtin.CallingConvention.c,
-                    .is_generic = signature_fn_info.is_generic,
-                    .is_var_args = signature_fn_info.is_var_args,
-                    .return_type = signature_fn_info.return_type,
-                    .params = .{self_param} ++ signature_fn_info.params,
-                },
-            });
 
             const offset = @offsetOf(BlockLiteral(void), "invoke");
-            const invoke_ptr: *const SignatureForInvoke = @ptrCast(self + offset);
-            return @call(.auto, invoke_ptr, .{self} ++ args);
+            const base: [*]const u8 = @ptrCast(self);
+            const invoke_ptr: *const *const SignatureForInvoke = @ptrCast(@alignCast(base + offset));
+            return @call(.auto, invoke_ptr.*, .{self} ++ args);
         }
 
         pub fn copy(self: *const @This()) *@This() {
@@ -71,7 +72,7 @@ pub fn BlockLiteral(comptime Context: type) type {
 }
 
 pub fn BlockLiteralWithSignature(comptime Context: type, comptime Signature: type) type {
-    // We could also obtain `Context` from `@typeInfo(Signature).@"fn".params[0].type`.
+    // We could also obtain `Context` from `@typeInfo(Signature).@"fn".param_types[0]`.
     return extern struct {
         literal: BlockLiteral(Context),
 
@@ -100,8 +101,8 @@ fn CopyDisposeBlockDescriptor(comptime Context: type) type {
         copy: *const CopyFn,
         dispose: *const DisposeFn,
 
-        pub const CopyFn = fn (dst: *BlockLiteral(Context), src: *const BlockLiteral(Context)) callconv(.C) void;
-        pub const DisposeFn = fn (block: *const BlockLiteral(Context)) callconv(.C) void;
+        pub const CopyFn = fn (dst: *BlockLiteral(Context), src: *const BlockLiteral(Context)) callconv(.c) void;
+        pub const DisposeFn = fn (block: *const BlockLiteral(Context)) callconv(.c) void;
 
         fn static(comptime size: c_ulong, comptime copy: CopyFn, comptime dispose: DisposeFn) *const CopyDisposeBlockDescriptor {
             const Static = struct {
@@ -117,10 +118,19 @@ fn CopyDisposeBlockDescriptor(comptime Context: type) type {
 }
 
 fn SignatureWithoutBlockLiteral(comptime Signature: type) type {
-    var type_info = @typeInfo(Signature);
-    type_info.@"fn".calling_convention = .auto;
-    type_info.@"fn".params = type_info.@"fn".params[1..];
-    return @Type(type_info);
+    const fn_info = @typeInfo(Signature).@"fn";
+    var param_types: []const type = &.{};
+    var param_attrs: []const std.builtin.Type.Fn.ParamAttributes = &.{};
+    for (fn_info.param_types[1..]) |param_type| {
+        param_types = param_types ++ .{param_type.?};
+        param_attrs = param_attrs ++ .{std.builtin.Type.Fn.ParamAttributes{}};
+    }
+    return @Fn(
+        param_types,
+        @ptrCast(param_attrs.ptr),
+        fn_info.return_type.?,
+        .{},
+    );
 }
 
 fn validateBlockSignature(comptime Invoke: type, comptime ExpectedLiteralType: type) void {
@@ -132,7 +142,7 @@ fn validateBlockSignature(comptime Invoke: type, comptime ExpectedLiteralType: t
             // }
 
             // TODO: should we allow zero params? At the ABI-level it would be fine but I think the compiler might consider it UB.
-            if (fn_info.params.len == 0 or fn_info.params[0].type != *ExpectedLiteralType) {
+            if (fn_info.param_types.len == 0 or fn_info.param_types[0] != *ExpectedLiteralType) {
                 @compileError("The first parameter for a block's `invoke` must be a block literal pointer");
             }
         },
@@ -143,8 +153,8 @@ fn validateBlockSignature(comptime Invoke: type, comptime ExpectedLiteralType: t
 pub fn stackBlockLiteral(
     invoke: anytype,
     context: anytype,
-    comptime copy: ?fn (dst: *BlockLiteral(@TypeOf(context)), src: *const BlockLiteral(@TypeOf(context))) callconv(.C) void,
-    comptime dispose: ?fn (block: *const BlockLiteral(@TypeOf(context))) callconv(.C) void,
+    comptime copy: ?fn (dst: *BlockLiteral(@TypeOf(context)), src: *const BlockLiteral(@TypeOf(context))) callconv(.c) void,
+    comptime dispose: ?fn (block: *const BlockLiteral(@TypeOf(context))) callconv(.c) void,
 ) BlockLiteralWithSignature(@TypeOf(context), SignatureWithoutBlockLiteral(@TypeOf(invoke))) {
     const Context = @TypeOf(context);
     const Literal = BlockLiteral(Context);
