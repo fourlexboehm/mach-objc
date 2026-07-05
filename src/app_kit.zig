@@ -1,9 +1,9 @@
+const std = @import("std");
 const ca = @import("quartz_core.zig");
 const cf = @import("core_foundation.zig");
 const ns = @import("foundation.zig");
 const cg = @import("core_graphics.zig");
 const objc = @import("objc.zig");
-const std = @import("std");
 
 pub const applicationMain = NSApplicationMain;
 extern fn NSApplicationMain(argc: c_int, argv: [*]*c_char) c_int;
@@ -37,6 +37,9 @@ pub const PrintInfoAttributeKey = *String;
 pub const Rect = cg.Rect;
 pub const Point = cg.Point;
 pub const Size = cg.Size;
+pub const RunLoopMode = *String;
+pub extern const NSDefaultRunLoopMode: RunLoopMode;
+pub extern const NSRunLoopCommonModes: RunLoopMode;
 pub const PrinterPaperName = *String;
 pub const PrintJobDispositionValue = *String;
 pub const InterfaceStyle = UInteger;
@@ -54,9 +57,6 @@ pub const NibName = *String;
 pub const WindowFrameAutosaveName = *String;
 pub const AccessibilityParameterizedAttributeName = *String;
 pub const UserInterfaceItemIdentifier = *String;
-
-pub const RunLoopMode = *String;
-pub extern const NSDefaultRunLoopMode: RunLoopMode;
 
 pub const TrackingAreaOptions = UInteger;
 pub const TrackingMouseEnteredAndExited: TrackingAreaOptions = 1;
@@ -109,7 +109,7 @@ pub const EventMaskSmartMagnify: EventMask = 4294967296;
 pub const EventMaskPressure: EventMask = 17179869184;
 pub const EventMaskDirectTouch: EventMask = 137438953472;
 pub const EventMaskChangeMode: EventMask = 274877906944;
-pub const EventMaskAny: EventMask = std.math.maxInt(UInteger);
+pub const EventMaskAny: EventMask = std.math.maxInt(c_ulonglong);
 
 pub const BackingStoreType = UInteger;
 pub const BackingStoreRetained: BackingStoreType = 0;
@@ -162,8 +162,8 @@ pub const EventTypeOtherMouseUp: EventType = 26;
 pub const EventTypeOtherMouseDragged: EventType = 27;
 pub const EventTypeGesture: EventType = 29;
 pub const EventTypeMagnify: EventType = 30;
-pub const EventTypeSwipe: EventType   = 31;
-pub const EventTypeRotate: EventType  = 18;
+pub const EventTypeSwipe: EventType = 31;
+pub const EventTypeRotate: EventType = 18;
 pub const EventTypeBeginGesture: EventType = 19;
 pub const EventTypeEndGesture: EventType = 20;
 pub const EventTypeSmartMagnify: EventType = 32;
@@ -215,11 +215,11 @@ pub const Application = opaque {
     pub fn setDelegate(self_: *@This(), delegate_: ?*ApplicationDelegate) void {
         return objc.msgSend(self_, "setDelegate:", void, .{delegate_});
     }
-    pub fn nextEventMatchingMask(self_: *@This(), mask_: EventMask, expiration_: ?*Date, run_loop_mode_: RunLoopMode, dequeue_: bool) ?*Event {
-        return objc.msgSend(self_, "nextEventMatchingMask:untilDate:inMode:dequeue:", ?*Event, .{mask_, expiration_, run_loop_mode_, dequeue_});
-    }
     pub fn sendEvent(self_: *@This(), event_: *Event) void {
         return objc.msgSend(self_, "sendEvent:", void, .{event_});
+    }
+    pub fn nextEventMatchingMask_untilDate_inMode_dequeue(self_: *@This(), mask_: EventMask, expiration_: ?*Date, mode_: RunLoopMode, deqFlag_: bool) ?*Event {
+        return objc.msgSend(self_, "nextEventMatchingMask:untilDate:inMode:dequeue:", ?*Event, .{ mask_, expiration_, mode_, deqFlag_ });
     }
 };
 
@@ -232,22 +232,6 @@ pub const Responder = opaque {
     pub const new = InternalInfo.new;
     pub const alloc = InternalInfo.alloc;
     pub const allocInit = InternalInfo.allocInit;
-};
-
-pub const Date = opaque {
-    pub const InternalInfo = objc.ExternClass("NSDate", @This(), Responder, &.{});
-    pub const as = InternalInfo.as;
-    pub const retain = InternalInfo.retain;
-    pub const release = InternalInfo.release;
-    pub const autorelease = InternalInfo.autorelease;
-    pub const new = InternalInfo.new;
-    pub const alloc = InternalInfo.alloc;
-    pub const allocInit = InternalInfo.allocInit;
-
-
-    pub fn distantPast() *Date {
-        return objc.msgSend(@This().InternalInfo.class(), "distantPast", *Date, .{});
-    }
 };
 
 pub const Window = opaque {
@@ -406,6 +390,12 @@ pub const Event = opaque {
     pub fn addLocalMonitorForEventsMatchingMask_handler(mask_: EventMask, block_: *ns.Block(fn (*Event) ?*Event)) ?*objc.Id {
         return objc.msgSend(@This().InternalInfo.class(), "addLocalMonitorForEventsMatchingMask:handler:", ?*objc.Id, .{ mask_, block_ });
     }
+    pub fn removeMonitor(eventMonitor_: *objc.Id) void {
+        return objc.msgSend(@This().InternalInfo.class(), "removeMonitor:", void, .{eventMonitor_});
+    }
+    pub fn @"type"(self_: *@This()) EventType {
+        return objc.msgSend(self_, "type", EventType, .{});
+    }
     pub fn modifierFlags(self_: *@This()) EventModifierFlags {
         return objc.msgSend(self_, "modifierFlags", EventModifierFlags, .{});
     }
@@ -436,14 +426,29 @@ pub const Event = opaque {
     pub fn phase(self_: *@This()) EventPhase {
         return objc.msgSend(self_, "phase", EventPhase, .{});
     }
-    pub fn getType(self_: *@This()) EventType {
-        return objc.msgSend(self_, "type", EventType, .{});
-    }
     pub fn T_modifierFlags() EventModifierFlags {
         return objc.msgSend(@This().InternalInfo.class(), "modifierFlags", EventModifierFlags, .{});
     }
     pub fn pressedMouseButtons() UInteger {
         return objc.msgSend(@This().InternalInfo.class(), "pressedMouseButtons", UInteger, .{});
+    }
+};
+
+pub const Date = opaque {
+    pub const InternalInfo = objc.ExternClass("NSDate", @This(), ObjectInterface, &.{});
+    pub const as = InternalInfo.as;
+    pub const retain = InternalInfo.retain;
+    pub const release = InternalInfo.release;
+    pub const autorelease = InternalInfo.autorelease;
+    pub const new = InternalInfo.new;
+    pub const alloc = InternalInfo.alloc;
+    pub const allocInit = InternalInfo.allocInit;
+
+    pub fn dateWithTimeIntervalSinceNow(secs_: TimeInterval) *@This() {
+        return objc.msgSend(@This().InternalInfo.class(), "dateWithTimeIntervalSinceNow:", *@This(), .{secs_});
+    }
+    pub fn distantPast() *Date {
+        return objc.msgSend(@This().InternalInfo.class(), "distantPast", *Date, .{});
     }
 };
 
@@ -457,35 +462,35 @@ pub const View = opaque {
     pub const alloc = InternalInfo.alloc;
     pub const allocInit = InternalInfo.allocInit;
 
-    pub fn addSubView(self_: *@This(), subView_: *@This()) void {
-        return objc.msgSend(self_, "addSubview:", void, .{subView_});
-    }
-    pub fn setFrameOrigin(self_: *@This(), point_: Point) void {
-        return objc.msgSend(self_, "setFrameOrigin:", void, .{point_});
-    }
-    pub fn setFrameSize(self_: *@This(), size_: Size) void {
-        return objc.msgSend(self_, "setFrameSize:", void, .{size_});
-    }
-    pub fn setBoundsOrigin(self_: *@This(), point_: Point) void {
-        return objc.msgSend(self_, "setBoundsOrigin:", void, .{point_});
-    }
-    pub fn setBoundsSize(self_: *@This(), size_: Size) void {
-        return objc.msgSend(self_, "setBoundsSize:", void, .{size_});
-    }
     pub fn initWithFrame(self_: *@This(), frameRect_: Rect) *@This() {
         return objc.msgSend(self_, "initWithFrame:", *@This(), .{frameRect_});
+    }
+    pub fn addSubview(self_: *@This(), view_: *View) void {
+        return objc.msgSend(self_, "addSubview:", void, .{view_});
+    }
+    pub fn setFrameOrigin(self_: *@This(), newOrigin_: Point) void {
+        return objc.msgSend(self_, "setFrameOrigin:", void, .{newOrigin_});
+    }
+    pub fn setFrameSize(self_: *@This(), newSize_: Size) void {
+        return objc.msgSend(self_, "setFrameSize:", void, .{newSize_});
+    }
+    pub fn setBoundsOrigin(self_: *@This(), newOrigin_: Point) void {
+        return objc.msgSend(self_, "setBoundsOrigin:", void, .{newOrigin_});
+    }
+    pub fn setBoundsSize(self_: *@This(), newSize_: Size) void {
+        return objc.msgSend(self_, "setBoundsSize:", void, .{newSize_});
+    }
+    pub fn window(self_: *@This()) ?*Window {
+        return objc.msgSend(self_, "window", ?*Window, .{});
+    }
+    pub fn setWantsLayer(self_: *@This(), wantsLayer_: bool) void {
+        return objc.msgSend(self_, "setWantsLayer:", void, .{wantsLayer_});
     }
     pub fn layer(self_: *@This()) *ca.Layer {
         return objc.msgSend(self_, "layer", *ca.Layer, .{});
     }
     pub fn setLayer(self_: *@This(), layer_: *ca.Layer) void {
         return objc.msgSend(self_, "setLayer:", void, .{layer_});
-    }
-    pub fn setWantsLayer(self_: *@This(), wants_layer_: bool) void {
-        return objc.msgSend(self_, "setWantsLayer:", void, .{wants_layer_});
-    }
-    pub fn window(self_: *@This()) *Window {
-        return objc.msgSend(self_, "window", *Window, .{});
     }
 };
 
@@ -580,8 +585,8 @@ pub const Screen = opaque {
     pub const alloc = InternalInfo.alloc;
     pub const allocInit = InternalInfo.allocInit;
 
-    pub fn screens() *Array(*Screen) {
-        return objc.msgSend(@This().InternalInfo.class(), "screens", *Array(*Screen), .{});
+    pub fn screens() *ns.Array(*Screen) {
+        return objc.msgSend(@This().InternalInfo.class(), "screens", *ns.Array(*Screen), .{});
     }
     pub fn mainScreen() ?*Screen {
         return objc.msgSend(@This().InternalInfo.class(), "mainScreen", ?*Screen, .{});
@@ -601,7 +606,7 @@ pub const TrackingArea = opaque {
     pub const alloc = InternalInfo.alloc;
     pub const allocInit = InternalInfo.allocInit;
 
-    pub fn initWithRect_options_owner_userInfo(self_: *@This(), rect_: Rect, options_: TrackingAreaOptions, owner_: ?*objc.Id, userInfo_: ?*Dictionary(*objc.Id, *objc.Id)) *@This() {
+    pub fn initWithRect_options_owner_userInfo(self_: *@This(), rect_: Rect, options_: TrackingAreaOptions, owner_: ?*objc.Id, userInfo_: ?*ns.Dictionary(*objc.Id, *objc.Id)) *@This() {
         return objc.msgSend(self_, "initWithRect:options:owner:userInfo:", *@This(), .{ rect_, options_, owner_, userInfo_ });
     }
     pub fn rect(self_: *@This()) Rect {
@@ -613,8 +618,8 @@ pub const TrackingArea = opaque {
     pub fn owner(self_: *@This()) ?*objc.Id {
         return objc.msgSend(self_, "owner", ?*objc.Id, .{});
     }
-    pub fn userInfo(self_: *@This()) ?*Dictionary(*objc.Id, *objc.Id) {
-        return objc.msgSend(self_, "userInfo", ?*Dictionary(*objc.Id, *objc.Id), .{});
+    pub fn userInfo(self_: *@This()) ?*ns.Dictionary(*objc.Id, *objc.Id) {
+        return objc.msgSend(self_, "userInfo", ?*ns.Dictionary(*objc.Id, *objc.Id), .{});
     }
 };
 

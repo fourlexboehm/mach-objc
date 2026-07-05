@@ -8,6 +8,8 @@ pub const foundation = @import("foundation.zig");
 pub const metal = @import("metal.zig");
 pub const quartz_core = @import("quartz_core.zig");
 pub const app_kit = @import("app_kit.zig");
+pub const core_video = @import("core_video.zig");
+pub const system = @import("system.zig");
 
 pub const mach = struct {
     pub const AppDelegate = opaque {
@@ -24,7 +26,7 @@ pub const mach = struct {
             method(self, block);
         }
         const method = @extern(
-            *const fn (*AppDelegate, *foundation.Block(fn () void)) callconv(.C) void,
+            *const fn (*AppDelegate, *foundation.Block(fn () void)) callconv(.c) void,
             .{ .name = "\x01-[MACHAppDelegate setRunBlock:]" },
         );
     };
@@ -43,7 +45,7 @@ pub const mach = struct {
             method_windowDidResize(self, block);
         }
         const method_windowDidResize = @extern(
-            *const fn (*WindowDelegate, *foundation.Block(fn () void)) callconv(.C) void,
+            *const fn (*WindowDelegate, *foundation.Block(fn () void)) callconv(.c) void,
             .{ .name = "\x01-[MACHWindowDelegate setBlock_windowDidResize:]" },
         );
 
@@ -51,8 +53,32 @@ pub const mach = struct {
             method_windowShouldClose(self, block);
         }
         const method_windowShouldClose = @extern(
-            *const fn (*WindowDelegate, *foundation.Block(fn () bool)) callconv(.C) void,
+            *const fn (*WindowDelegate, *foundation.Block(fn () bool)) callconv(.c) void,
             .{ .name = "\x01-[MACHWindowDelegate setBlock_windowShouldClose:]" },
+        );
+
+        pub fn setBlock_windowDidChangeBackingProperties(self: *WindowDelegate, block: *foundation.Block(fn () void)) void {
+            method_windowDidChangeBackingProperties(self, block);
+        }
+        const method_windowDidChangeBackingProperties = @extern(
+            *const fn (*WindowDelegate, *foundation.Block(fn () void)) callconv(.c) void,
+            .{ .name = "\x01-[MACHWindowDelegate setBlock_windowDidChangeBackingProperties:]" },
+        );
+
+        pub fn setBlock_windowDidBecomeKey(self: *WindowDelegate, block: *foundation.Block(fn () void)) void {
+            method_windowDidBecomeKey(self, block);
+        }
+        const method_windowDidBecomeKey = @extern(
+            *const fn (*WindowDelegate, *foundation.Block(fn () void)) callconv(.c) void,
+            .{ .name = "\x01-[MACHWindowDelegate setBlock_windowDidBecomeKey:]" },
+        );
+
+        pub fn setBlock_windowDidResignKey(self: *WindowDelegate, block: *foundation.Block(fn () void)) void {
+            method_windowDidResignKey(self, block);
+        }
+        const method_windowDidResignKey = @extern(
+            *const fn (*WindowDelegate, *foundation.Block(fn () void)) callconv(.c) void,
+            .{ .name = "\x01-[MACHWindowDelegate setBlock_windowDidResignKey:]" },
         );
     };
 
@@ -81,11 +107,19 @@ pub const mach = struct {
             return objc.msgSend(self_, "setLayer:", void, .{layer_});
         }
 
+        pub fn setBlock_render(self: *View, block: *foundation.Block(fn (*quartz_core.MetalDrawable) void)) void {
+            method_render(self, block);
+        }
+        const method_render = @extern(
+            *const fn (*View, *foundation.Block(fn (*quartz_core.MetalDrawable) void)) callconv(.c) void,
+            .{ .name = "\x01-[MACHView setBlock_render:]" },
+        );
+
         pub fn setBlock_keyDown(self: *View, block: *foundation.Block(fn (*app_kit.Event) void)) void {
             method_keyDown(self, block);
         }
         const method_keyDown = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_keyDown:]" },
         );
 
@@ -93,7 +127,7 @@ pub const mach = struct {
             method_insertText(self, block);
         }
         const method_insertText = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event, u32) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event, u32) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_insertText:]" },
         );
 
@@ -101,7 +135,7 @@ pub const mach = struct {
             method_keyUp(self, block);
         }
         const method_keyUp = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_keyUp:]" },
         );
 
@@ -109,7 +143,7 @@ pub const mach = struct {
             method_flagsChanged(self, block);
         }
         const method_flagsChanged = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_flagsChanged:]" },
         );
 
@@ -117,7 +151,7 @@ pub const mach = struct {
             method_magnify(self, block);
         }
         const method_magnify = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_magnify:]" },
         );
 
@@ -125,7 +159,7 @@ pub const mach = struct {
             method_mouseMoved(self, block);
         }
         const method_mouseMoved = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_mouseMoved:]" },
         );
 
@@ -133,7 +167,7 @@ pub const mach = struct {
             method_mouseDown(self, block);
         }
         const method_mouseDown = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_mouseDown:]" },
         );
 
@@ -141,7 +175,7 @@ pub const mach = struct {
             method_mouseUp(self, block);
         }
         const method_mouseUp = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_mouseUp:]" },
         );
 
@@ -149,13 +183,44 @@ pub const mach = struct {
             method_scrollWheel(self, block);
         }
         const method_scrollWheel = @extern(
-            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.C) void,
+            *const fn (*View, *foundation.Block(fn (*app_kit.Event) void)) callconv(.c) void,
             .{ .name = "\x01-[MACHView setBlock_scrollWheel:]" },
+        );
+
+        pub fn startDisplayLink(self: *View) bool {
+            return method_startDisplayLink(self);
+        }
+        const method_startDisplayLink = @extern(
+            *const fn (*View) callconv(.c) bool,
+            .{ .name = "\x01-[MACHView startDisplayLink]" },
+        );
+
+        pub fn stopDisplayLink(self: *View) void {
+            method_stopDisplayLink(self);
+        }
+        const method_stopDisplayLink = @extern(
+            *const fn (*View) callconv(.c) void,
+            .{ .name = "\x01-[MACHView stopDisplayLink]" },
         );
     };
 };
 
 test {
-    @setEvalBranchQuota(10000);
-    std.testing.refAllDeclsRecursive(@This());
+    @setEvalBranchQuota(100000);
+    refAllDeclsRecursive(@This());
+}
+
+fn refAllDeclsRecursive(comptime T: type) void {
+    inline for (comptime std.meta.declarations(T)) |decl| {
+        const ptr_info = @typeInfo(@TypeOf(&@field(T, decl.name)));
+        if (ptr_info == .pointer and @typeInfo(ptr_info.pointer.child) == .type) {
+            const Inner = @field(T, decl.name);
+            const inner_info = @typeInfo(Inner);
+            if (inner_info == .@"struct" or inner_info == .@"opaque") {
+                refAllDeclsRecursive(Inner);
+            }
+        } else if (ptr_info == .pointer and @typeInfo(ptr_info.pointer.child) == .@"fn") {
+            _ = &@field(T, decl.name);
+        }
+    }
 }

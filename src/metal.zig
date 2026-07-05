@@ -1,3 +1,4 @@
+const std = @import("std");
 const cf = @import("core_foundation.zig");
 const ns = @import("foundation.zig");
 const objc = @import("objc.zig");
@@ -552,7 +553,7 @@ pub const DeviceLocation = ns.UInteger;
 pub const DeviceLocationBuiltIn: DeviceLocation = 0;
 pub const DeviceLocationSlot: DeviceLocation = 1;
 pub const DeviceLocationExternal: DeviceLocation = 2;
-pub const DeviceLocationUnspecified: DeviceLocation = 0;
+pub const DeviceLocationUnspecified: DeviceLocation = std.math.maxInt(ns.UInteger);
 
 pub const PipelineOption = ns.UInteger;
 pub const PipelineOptionNone: PipelineOption = 0;

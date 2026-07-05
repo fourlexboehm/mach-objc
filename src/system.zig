@@ -6,6 +6,24 @@ pub extern "System" fn dispatch_async_f(queue: *anyopaque, context: ?*anyopaque,
 pub extern "System" fn @"dispatch_assert_queue$V2"(queue: *anyopaque) void;
 pub extern "System" var _dispatch_main_q: anyopaque;
 
+pub const dispatch_source_t = *opaque {};
+pub const dispatch_source_type_t = *const opaque {};
+pub extern "System" var _dispatch_source_type_data_add: anyopaque;
+
+pub extern "System" fn dispatch_source_create(source_type: dispatch_source_type_t, handle: usize, mask: usize, queue: *anyopaque) dispatch_source_t;
+pub extern "System" fn dispatch_source_set_event_handler_f(source: dispatch_source_t, handler: *const fn (?*anyopaque) callconv(.c) void) void;
+pub extern "System" fn dispatch_set_context(obj: *anyopaque, context: ?*anyopaque) void;
+pub extern "System" fn dispatch_resume(obj: *anyopaque) void;
+pub extern "System" fn dispatch_source_cancel(source: dispatch_source_t) void;
+pub extern "System" fn dispatch_source_merge_data(source: dispatch_source_t, value: usize) void;
+
+pub const dispatch_semaphore_t = *opaque {};
+pub const DISPATCH_TIME_NOW: u64 = 0;
+pub const DISPATCH_TIME_FOREVER: u64 = ~@as(u64, 0);
+pub extern "System" fn dispatch_semaphore_create(value: isize) ?dispatch_semaphore_t;
+pub extern "System" fn dispatch_semaphore_wait(dsema: dispatch_semaphore_t, timeout: u64) isize;
+pub extern "System" fn dispatch_semaphore_signal(dsema: dispatch_semaphore_t) isize;
+
 extern fn _Block_copy(*const anyopaque) *anyopaque; // Provided by libSystem on iOS but not macOS.
 extern fn _Block_release(*const anyopaque) void; // Provided by libSystem on iOS but not macOS.
 
